@@ -45,7 +45,7 @@ import {
 } from 'lucide-react'
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
-import { initialCandidates, platformPlan, type Candidate } from './data'
+import { initialCandidates, platformPlan, type Candidate, type CandidateStatus } from './data'
 import { recommendedEdition, recruitingAccountBand, systemEditions } from './lib/accountPlans'
 import { adminConsoleLayoutPreference } from './lib/adminLayout'
 import { overviewDashboardLayoutPreference } from './lib/dashboardOverview'
@@ -1822,6 +1822,10 @@ function App() {
     setCandidates((items) => items.map((item) => (item.id === selected.id ? { ...item, ...patch } : item)))
   }
 
+  function updateCandidate(candidateId: number, patch: Partial<Candidate>) {
+    setCandidates((items) => items.map((item) => (item.id === candidateId ? { ...item, ...patch } : item)))
+  }
+
   function moveCard(draggedId: string, targetId: string) {
     setLayoutProfiles((profiles) => ({
       ...profiles,
@@ -2157,7 +2161,12 @@ function App() {
           {section === 'base' && <PlatformBase />}
           {section === 'blueprint' && <FusionBlueprint />}
           {section === 'candidates' && (
-            <Candidates candidates={candidates} selectedId={selectedId} setSelectedId={setSelectedId} />
+            <Candidates
+              candidates={candidates}
+              selectedId={selectedId}
+              setSelectedId={setSelectedId}
+              updateCandidate={updateCandidate}
+            />
           )}
           {section === 'talentLibrary' && <TalentLibrary candidates={candidates} />}
           {section === 'performanceGoals' && <PerformanceGoalCenter />}
@@ -3800,10 +3809,12 @@ function Candidates({
   candidates,
   selectedId,
   setSelectedId,
+  updateCandidate,
 }: {
   candidates: Candidate[]
   selectedId: number
   setSelectedId: (id: number) => void
+  updateCandidate: (candidateId: number, patch: Partial<Candidate>) => void
 }) {
   const [sortDirection, setSortDirection] = useState<CandidatePoolSort>('newest')
   const [visibleColumns, setVisibleColumns] = useState<CandidatePoolColumn[]>(defaultCandidatePoolColumns)
@@ -3811,6 +3822,7 @@ function Candidates({
   const [customDisplayField, setCustomDisplayField] = useState('')
   const [focusTags, setFocusTags] = useState<string[]>(defaultCandidateFocusTags)
   const [customFocusTag, setCustomFocusTag] = useState('')
+  const selectedCandidate = candidates.find((candidate) => candidate.id === selectedId) ?? candidates[0]
   const sortedCandidates = sortCandidates(candidates, sortDirection, focusTags)
   const talentLibraryBoard = buildTalentLibraryBoard(candidates, sampleTalentArchiveContext)
   const displayDensity = displayFieldDensityClass(visibleColumns.length + manualDisplayFields.length)
@@ -3867,6 +3879,7 @@ function Candidates({
     { id: 'scoreLow', label: '分数最低' },
     { id: 'matchHigh', label: '匹配度最高' },
   ]
+  const statusOptions: CandidateStatus[] = ['待初试', '推荐复试', '待作业', '储备', '录用', '淘汰']
   const addCustomFocusTag = () => {
     const nextTag = customFocusTag.trim()
     if (!nextTag || focusTags.includes(nextTag)) return
@@ -3968,6 +3981,31 @@ function Candidates({
         <p className="muted">
           已关注 {focusTags.length} 项；技能列会优先显示命中的关注项，再展示候选人简历中的其他技能标签。
         </p>
+      </Card>
+      <Card title="候选人状态流转">
+        <div className="candidate-status-flow">
+          <div>
+            <span>当前候选人</span>
+            <strong>{selectedCandidate.name}</strong>
+            <p>
+              {candidateJobCode(selectedCandidate)} / {selectedCandidate.postName} / 当前状态：
+              {selectedCandidate.status}
+            </p>
+          </div>
+          <div className="candidate-status-actions">
+            {statusOptions.map((status) => (
+              <button
+                className={selectedCandidate.status === status ? 'status-flow-button active' : 'status-flow-button'}
+                key={status}
+                onClick={() => updateCandidate(selectedCandidate.id, { status })}
+                type="button"
+              >
+                {status}
+              </button>
+            ))}
+          </div>
+          <p className="muted">状态变更会保存到本机数据；刷新页面后仍保留。</p>
+        </div>
       </Card>
       <Card title="简历库分层">
         <div className="talent-summary-grid">
