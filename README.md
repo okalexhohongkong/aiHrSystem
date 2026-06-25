@@ -46,6 +46,26 @@ npm run demo
 
 也可以双击项目根目录的 `start-demo-mac.command` 启动。
 
+## 仓库内整站文件夹
+
+仓库已经包含一份可直接部署的整站静态文件：
+
+```text
+whole-site/黑卫士AIHR-整站文件夹/
+```
+
+如果只想查看整站文件，不改代码，可以进入该目录，用静态服务器打开：
+
+```bash
+python3 -m http.server 8080 --bind 127.0.0.1 --directory "whole-site/黑卫士AIHR-整站文件夹"
+```
+
+然后访问：
+
+```text
+http://127.0.0.1:8080/
+```
+
 ## Mac 本机演示启动
 
 ```bash
