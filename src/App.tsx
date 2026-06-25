@@ -241,8 +241,11 @@ import {
 } from './lib/layoutWorkspace'
 import {
   browserLocalStorage,
+  clearPersistedValues,
+  exportPersistedValues,
   localPersistenceKeys,
   readPersistedValue,
+  restorePersistedValues,
   writePersistedValue,
 } from './lib/localPersistence'
 import {
@@ -3002,6 +3005,8 @@ function AdminConsole() {
   const operatorCount = 12
   const recruitingAccountCount = 16
   const recommended = recommendedEdition(operatorCount, recruitingAccountCount)
+  const dataBackupInputRef = useRef<HTMLInputElement | null>(null)
+  const [dataBackupStatus, setDataBackupStatus] = useState('本机数据保存已启用，可导出备份或从备份恢复。')
   const adminUsers = [
     {
       name: '王主管',
@@ -3033,6 +3038,40 @@ function AdminConsole() {
     { name: '技术岗招聘号', owner: '王主管', mode: '网页登录辅助', quota: '子账号', status: '待人工确认' },
     { name: '销售岗招聘号', owner: '陈HR', mode: '邮箱简历同步', quota: '子账号', status: '正常' },
   ]
+  const exportLocalData = () => {
+    const snapshot = exportPersistedValues(browserLocalStorage())
+    const dateLabel = new Date().toISOString().slice(0, 10)
+    downloadJsonFile(`heiwenshi-aihr-local-backup-${dateLabel}.json`, snapshot)
+    setDataBackupStatus(`已导出 ${Object.keys(snapshot.values).length} 类本机数据备份。`)
+  }
+  const restoreLocalData = async (event: { currentTarget: HTMLInputElement }) => {
+    const file = event.currentTarget.files?.[0]
+    event.currentTarget.value = ''
+    if (!file) return
+
+    try {
+      const snapshot = JSON.parse(await file.text()) as unknown
+      const result = restorePersistedValues(browserLocalStorage(), snapshot)
+      if (!result.ok) {
+        setDataBackupStatus('恢复失败：备份文件格式不正确，或浏览器本地存储不可用。')
+        return
+      }
+      setDataBackupStatus(`已恢复 ${result.restoredKeys.length} 类本机数据，刷新页面后生效。`)
+    } catch {
+      setDataBackupStatus('恢复失败：请选择系统导出的 JSON 备份文件。')
+    }
+  }
+  const clearLocalData = () => {
+    if (typeof window !== 'undefined' && !window.confirm('确认清空本机保存的数据吗？清空后需要重新导入备份或使用演示数据。')) {
+      return
+    }
+    const result = clearPersistedValues(browserLocalStorage())
+    if (!result.ok) {
+      setDataBackupStatus('清空失败：浏览器本地存储不可用。')
+      return
+    }
+    setDataBackupStatus(`已清空 ${result.clearedKeys.length} 类本机数据，刷新页面后恢复演示默认数据。`)
+  }
 
   return (
     <section>
@@ -3075,6 +3114,29 @@ function AdminConsole() {
               <strong>安全审计</strong>
               <p>新增同事、重置密码、导出候选人、连接招聘账号都写入操作日志。</p>
             </div>
+          </div>
+        </Card>
+
+        <Card title="本机数据管理">
+          <div className="local-data-panel">
+            <div className="notice">
+              <strong>单机版数据：</strong>
+              候选人、岗位、问卷、评分、作业、界面设置等数据先保存在本机浏览器里；导出备份后可以换电脑恢复。
+            </div>
+            <div className="local-data-actions">
+              <button className="button primary" onClick={exportLocalData} type="button">导出本机备份</button>
+              <button className="button" onClick={() => dataBackupInputRef.current?.click()} type="button">导入恢复</button>
+              <button className="button danger" onClick={clearLocalData} type="button">清空本机数据</button>
+              <button className="button" onClick={() => window.location.reload()} type="button">刷新生效</button>
+              <input
+                accept="application/json,.json"
+                className="visually-hidden"
+                onChange={restoreLocalData}
+                ref={dataBackupInputRef}
+                type="file"
+              />
+            </div>
+            <p className="local-data-status">{dataBackupStatus}</p>
           </div>
         </Card>
 
