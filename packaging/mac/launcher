@@ -1,0 +1,37 @@
+#!/bin/zsh
+set -e
+
+APP_CONTENTS="$(cd "$(dirname "$0")/.." && pwd)"
+DIST_DIR="$APP_CONTENTS/Resources/dist"
+PORT="${HEIWEISHI_AIHR_PORT:-5188}"
+LOG_DIR="$HOME/Library/Logs/HeiweishiAIHR"
+URL="http://127.0.0.1:${PORT}/"
+
+mkdir -p "$LOG_DIR"
+
+if [ ! -d "$DIST_DIR" ]; then
+  osascript -e 'display dialog "启动失败：安装包缺少演示页面文件，请重新解压或重新安装。" buttons {"知道了"} default button "知道了" with icon caution'
+  exit 1
+fi
+
+if ! command -v python3 >/dev/null 2>&1; then
+  osascript -e 'display dialog "启动失败：这台 Mac 没有找到 python3。请先安装 Python 3，或联系我重新生成带运行环境的版本。" buttons {"知道了"} default button "知道了" with icon caution'
+  exit 1
+fi
+
+if lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
+  open "$URL"
+  osascript -e 'display notification "黑卫士 AI HR 已在本机运行，正在打开浏览器。" with title "黑卫士 AI HR"'
+  exit 0
+fi
+
+cd "$DIST_DIR"
+echo $$ > "$LOG_DIR/demo-server.pid"
+
+(
+  sleep 1
+  open "$URL"
+  osascript -e 'display notification "单机演示版已启动，浏览器会自动打开。应用保持打开时，本机服务会持续运行。" with title "黑卫士 AI HR"'
+) &
+
+exec python3 -m http.server "$PORT" --bind 127.0.0.1 > "$LOG_DIR/demo-server.log" 2>&1
