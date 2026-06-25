@@ -1,8 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
+  clearPersistedValues,
   createLocalPersistence,
+  exportPersistedValues,
   localPersistenceKeys,
   readPersistedValue,
+  restorePersistedValues,
   writePersistedValue,
 } from './localPersistence'
 
@@ -87,5 +90,54 @@ describe('local persistence', () => {
       theme: expect.any(String),
       threeStageHomeworkTasks: expect.any(String),
     })
+  })
+
+  it('exports and restores a single-machine data snapshot', () => {
+    const source = memoryStorage()
+    const target = memoryStorage()
+
+    writePersistedValue(source, localPersistenceKeys.candidates, [{ id: 1, name: '李晨' }])
+    writePersistedValue(source, localPersistenceKeys.theme, 'sky')
+    source.setItem('unmanaged.key', JSON.stringify({ value: 'ignore me' }))
+
+    const snapshot = exportPersistedValues(source)
+    const result = restorePersistedValues(target, snapshot)
+
+    expect(result.ok).toBe(true)
+    expect(result.restoredKeys).toEqual([localPersistenceKeys.candidates, localPersistenceKeys.theme])
+    expect(readPersistedValue(target, localPersistenceKeys.candidates, [])).toEqual([{ id: 1, name: '李晨' }])
+    expect(readPersistedValue(target, localPersistenceKeys.theme, 'green')).toBe('sky')
+    expect(target.getItem('unmanaged.key')).toBeNull()
+  })
+
+  it('rejects invalid or outdated snapshots during restore', () => {
+    const storage = memoryStorage()
+
+    expect(restorePersistedValues(storage, { version: 0, values: {} })).toEqual({
+      ok: false,
+      reason: 'invalid-snapshot',
+      restoredKeys: [],
+    })
+
+    expect(restorePersistedValues(storage, { version: 1, values: [] })).toEqual({
+      ok: false,
+      reason: 'invalid-snapshot',
+      restoredKeys: [],
+    })
+  })
+
+  it('clears every managed local persistence key without touching unmanaged storage', () => {
+    const storage = memoryStorage()
+
+    writePersistedValue(storage, localPersistenceKeys.candidates, [{ id: 1 }])
+    writePersistedValue(storage, localPersistenceKeys.theme, 'green')
+    storage.setItem('unmanaged.key', 'keep')
+
+    const result = clearPersistedValues(storage)
+
+    expect(result.ok).toBe(true)
+    expect(readPersistedValue(storage, localPersistenceKeys.candidates, [])).toEqual([])
+    expect(readPersistedValue(storage, localPersistenceKeys.theme, 'sky')).toBe('sky')
+    expect(storage.getItem('unmanaged.key')).toBe('keep')
   })
 })
