@@ -4330,7 +4330,7 @@ label span {
 
 .library-candidate-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 10px;
   align-items: center;
   border: 1px solid #edf0f5;
@@ -4350,6 +4350,13 @@ label span {
 .library-candidate-row small {
   display: block;
   text-align: right;
+}
+
+.library-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
 }
 
 .interview-round-head {

@@ -2174,7 +2174,7 @@ function App() {
               updateCandidate={updateCandidate}
             />
           )}
-          {section === 'talentLibrary' && <TalentLibrary candidates={candidates} />}
+          {section === 'talentLibrary' && <TalentLibrary candidates={candidates} updateCandidate={updateCandidate} />}
           {section === 'performanceGoals' && <PerformanceGoalCenter />}
           {section === 'contracts' && <ContractCenter selected={selected} />}
           {section === 'first' && <FirstEvaluation selected={selected} updateSelected={updateSelected} />}
@@ -4241,7 +4241,13 @@ function Candidates({
   )
 }
 
-function TalentLibrary({ candidates }: { candidates: Candidate[] }) {
+function TalentLibrary({
+  candidates,
+  updateCandidate,
+}: {
+  candidates: Candidate[]
+  updateCandidate: (candidateId: number, patch: Partial<Candidate>) => void
+}) {
   const board = buildTalentLibraryBoard(candidates, sampleTalentArchiveContext)
   const focusGroups: TalentLibraryGroupId[] = [
     'salaryMismatchHeadhunter',
@@ -4255,6 +4261,24 @@ function TalentLibrary({ candidates }: { candidates: Candidate[] }) {
     'secondInterview',
     'finalInterview',
   ]
+  const archiveCandidateById = (candidateId: number, status: CandidateStatus, note: string) => {
+    const candidate = candidates.find((item) => item.id === candidateId)
+    if (!candidate) return
+
+    updateCandidate(candidateId, {
+      operationLog: [
+        {
+          action: '简历库归档',
+          at: new Date().toISOString(),
+          fromStatus: candidate.status,
+          note,
+          toStatus: status,
+        },
+        ...(candidate.operationLog ?? []),
+      ].slice(0, 12),
+      status,
+    })
+  }
 
   return (
     <section>
@@ -4321,6 +4345,22 @@ function TalentLibrary({ candidates }: { candidates: Candidate[] }) {
                     <div>
                       <span className={`badge level-${candidate.totalLevel}`}>{candidate.totalLevel}</span>
                       <small>{candidate.totalScore} 分</small>
+                    </div>
+                    <div className="library-row-actions">
+                      <button
+                        className="table-action"
+                        onClick={() => archiveCandidateById(candidate.id, '储备', `从${group.label}转入储备维护`)}
+                        type="button"
+                      >
+                        转储备
+                      </button>
+                      <button
+                        className="table-action"
+                        onClick={() => archiveCandidateById(candidate.id, '淘汰', `从${group.label}归档淘汰`)}
+                        type="button"
+                      >
+                        归档淘汰
+                      </button>
                     </div>
                   </div>
                 ))
