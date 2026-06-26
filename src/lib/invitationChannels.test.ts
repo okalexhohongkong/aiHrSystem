@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest'
 import {
   accountsByChannel,
   accountsByCompany,
+  createInvitationQueueRecord,
   composeInvitationMessage,
   composeAppointmentMessage,
   composeEmailInstructionBlock,
   canSendThroughChannel,
+  defaultInvitationQueueRecords,
   defaultEmailInstructionModuleIds,
   defaultJobAppointmentScripts,
   emailInstructionModules,
@@ -13,6 +15,7 @@ import {
   invitationChannelLabels,
   invitationProcessingOrder,
   invitationChannelSecurityRules,
+  invitationQueueStatuses,
   scriptForJob,
   selectPreferredChannel,
   validateDedicatedCompanyAccount,
@@ -258,5 +261,31 @@ describe('third-party invitation channels', () => {
   it('shows credential state without exposing secrets', () => {
     expect(credentialStatusText('configured')).toBe('已配置，前端不显示密钥')
     expect(invitationChannelSecurityRules.join('')).toContain('不展示明文密钥')
+  })
+
+  it('keeps invitation queue records editable and ready for local persistence', () => {
+    expect(defaultInvitationQueueRecords).toHaveLength(4)
+    expect(invitationQueueStatuses).toEqual(expect.arrayContaining(['待HR确认', '已发送', '已接受', '需改期']))
+
+    const record = createInvitationQueueRecord({
+      account: '',
+      action: '',
+      candidate: '  王五  ',
+      channel: 'email',
+      company: '',
+      job: '  财务经理  ',
+      now: '2026-06-26T08:20:00+08:00',
+      status: '待HR确认',
+    })
+
+    expect(record).toMatchObject({
+      account: '邮件预约',
+      action: '邀约预约',
+      candidate: '王五',
+      company: '待确认公司主体',
+      job: '财务经理',
+      status: '待HR确认',
+      updatedAt: '2026-06-26T08:20:00+08:00',
+    })
   })
 })

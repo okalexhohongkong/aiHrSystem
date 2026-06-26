@@ -26,6 +26,83 @@ export const invitationProcessingOrder: InvitationChannelType[] = ['email', 'pla
 
 export type AppointmentFeedbackStatus = '待接受' | '已接受' | '已拒绝' | '需改期'
 export type AppointmentMode = 'onlineMeeting' | 'offlineInterview' | 'phoneInterview'
+export type InvitationQueueStatus =
+  | '待HR确认'
+  | '待补充作品集'
+  | '待确认时间'
+  | '人工复核'
+  | '已发送'
+  | '已接受'
+  | '需改期'
+
+export type InvitationQueueRecord = {
+  id: string
+  candidate: string
+  job: string
+  channel: InvitationChannelType
+  company: string
+  account: string
+  action: string
+  status: InvitationQueueStatus
+  updatedAt: string
+}
+
+export const invitationQueueStatuses: InvitationQueueStatus[] = [
+  '待HR确认',
+  '待补充作品集',
+  '待确认时间',
+  '人工复核',
+  '已发送',
+  '已接受',
+  '需改期',
+]
+
+export const defaultInvitationQueueRecords: InvitationQueueRecord[] = [
+  {
+    account: 'hr@heiwenshi.ai',
+    action: '邀约线上初试',
+    candidate: '李晨',
+    channel: 'email',
+    company: '黑卫士科技',
+    id: 'invite-li-chen-business-email',
+    job: '业务经理',
+    status: '待HR确认',
+    updatedAt: '2026-06-19T14:00:00+08:00',
+  },
+  {
+    account: '微信-内容招聘1号',
+    action: '生成微信问候语',
+    candidate: '陈琳',
+    channel: 'wechat',
+    company: '黑卫士市场中心',
+    id: 'invite-chen-lin-content-wechat',
+    job: '自媒体创意制作',
+    status: '待补充作品集',
+    updatedAt: '2026-06-19T14:10:00+08:00',
+  },
+  {
+    account: '企微-技术招聘组',
+    action: '复试邀约',
+    candidate: '周敏',
+    channel: 'wecom',
+    company: '黑卫士智能硬件',
+    id: 'invite-zhou-min-tech-wecom',
+    job: 'AI系统开发',
+    status: '待确认时间',
+    updatedAt: '2026-06-19T14:20:00+08:00',
+  },
+  {
+    account: '短信签名-黑卫士招聘',
+    action: '短信提醒',
+    candidate: '赵磊',
+    channel: 'sms',
+    company: '黑卫士市场中心',
+    id: 'invite-zhao-lei-parttime-sms',
+    job: '合伙兼职/小时工',
+    status: '人工复核',
+    updatedAt: '2026-06-19T14:30:00+08:00',
+  },
+]
 
 export type InvitationMessageInput = {
   candidateName: string
@@ -232,6 +309,25 @@ export function validateDedicatedCompanyAccount(account: InvitationChannelAccoun
   return {
     ok: warnings.length === 0,
     warnings,
+  }
+}
+
+export function createInvitationQueueRecord(
+  input: Omit<InvitationQueueRecord, 'id' | 'updatedAt'> & { id?: string; now?: string },
+): InvitationQueueRecord {
+  const updatedAt = input.now ?? new Date().toISOString()
+  const safeCandidate = input.candidate.trim() || '未命名候选人'
+  const safeJob = input.job.trim() || '待确认岗位'
+
+  return {
+    ...input,
+    account: input.account.trim() || invitationChannelLabels[input.channel],
+    action: input.action.trim() || '邀约预约',
+    candidate: safeCandidate,
+    company: input.company.trim() || '待确认公司主体',
+    id: input.id ?? `invite-${updatedAt.replace(/[^0-9]/g, '').slice(0, 14)}-${safeCandidate.length}`,
+    job: safeJob,
+    updatedAt,
   }
 }
 

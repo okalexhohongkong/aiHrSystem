@@ -83,6 +83,7 @@ describe('local persistence', () => {
       firstEvaluationDimensionOrders: expect.any(String),
       firstEvaluationManualDimensions: expect.any(String),
       interfaceSettings: expect.any(String),
+      invitationQueueRecords: expect.any(String),
       jobPublishingCards: expect.any(String),
       jobQuestionnaireCards: expect.any(String),
       layoutProfileId: expect.any(String),

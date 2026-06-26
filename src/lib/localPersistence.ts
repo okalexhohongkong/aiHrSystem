@@ -7,6 +7,7 @@ export const localPersistenceKeys = {
   firstEvaluationDimensionOrders: 'heiwenshi.aihr.v1.firstEvaluationDimensionOrders',
   firstEvaluationManualDimensions: 'heiwenshi.aihr.v1.firstEvaluationManualDimensions',
   interfaceSettings: 'heiwenshi.aihr.v1.interfaceSettings',
+  invitationQueueRecords: 'heiwenshi.aihr.v1.invitationQueueRecords',
   jobPublishingCards: 'heiwenshi.aihr.v1.jobPublishingCards',
   jobQuestionnaireCards: 'heiwenshi.aihr.v1.jobQuestionnaireCards',
   layoutProfileId: 'heiwenshi.aihr.v1.layoutProfileId',

@@ -150,13 +150,18 @@ import {
 } from './lib/integrationAdapters'
 import {
   composeInvitationMessage,
+  createInvitationQueueRecord,
+  defaultInvitationQueueRecords,
   defaultEmailInstructionModuleIds,
   emailInstructionModules,
   invitationChannelLabels,
   invitationProcessingOrder,
+  invitationQueueStatuses,
   validateDedicatedCompanyAccount,
   type InvitationChannelAccount,
   type InvitationChannelType,
+  type InvitationQueueRecord,
+  type InvitationQueueStatus,
 } from './lib/invitationChannels'
 import {
   aiEvidenceRequirements,
@@ -8494,6 +8499,17 @@ const invitationProcessingAccounts: InvitationChannelAccount[] = [
 ]
 
 function MailWorkflow() {
+  const mailStorage = browserLocalStorage()
+  const [queueItems, setQueueItems] = useState<InvitationQueueRecord[]>(() =>
+    readPersistedValue(mailStorage, localPersistenceKeys.invitationQueueRecords, defaultInvitationQueueRecords),
+  )
+  const [newInvitationRecord, setNewInvitationRecord] = useState({
+    action: '邀约线上初试',
+    candidate: '',
+    channel: 'email' as InvitationChannelType,
+    company: '黑卫士科技',
+    job: '',
+  })
   const sampleEmail = composeInvitationMessage({
     candidateName: '李晨',
     channelType: 'email',
@@ -8511,12 +8527,29 @@ function MailWorkflow() {
     jobName: '自媒体创意制作',
     stage: '补充资料',
   })
-  const queueItems = [
-    { candidate: '李晨', job: '业务经理', channel: 'email' as InvitationChannelType, company: '黑卫士科技', account: 'hr@heiwenshi.ai', status: '待HR确认', action: '邀约线上初试' },
-    { candidate: '陈琳', job: '自媒体创意制作', channel: 'wechat' as InvitationChannelType, company: '黑卫士市场中心', account: '微信-内容招聘1号', status: '待补充作品集', action: '生成微信问候语' },
-    { candidate: '周敏', job: 'AI系统开发', channel: 'wecom' as InvitationChannelType, company: '黑卫士智能硬件', account: '企微-技术招聘组', status: '待确认时间', action: '复试邀约' },
-    { candidate: '赵磊', job: '合伙兼职/小时工', channel: 'sms' as InvitationChannelType, company: '黑卫士市场中心', account: '短信签名-黑卫士招聘', status: '人工复核', action: '短信提醒' },
-  ]
+  useEffect(() => {
+    writePersistedValue(mailStorage, localPersistenceKeys.invitationQueueRecords, queueItems)
+  }, [mailStorage, queueItems])
+
+  const accountForChannel = (channel: InvitationChannelType) =>
+    invitationProcessingAccounts.find((account) => account.channelType === channel)?.accountName ??
+    invitationChannelLabels[channel]
+  const addInvitationQueueRecord = () => {
+    if (!newInvitationRecord.candidate.trim() || !newInvitationRecord.job.trim()) return
+
+    const record = createInvitationQueueRecord({
+      ...newInvitationRecord,
+      account: accountForChannel(newInvitationRecord.channel),
+      status: '待HR确认',
+    })
+    setQueueItems((items) => [record, ...items])
+    setNewInvitationRecord((draft) => ({ ...draft, candidate: '', job: '' }))
+  }
+  const updateInvitationRecordStatus = (id: string, status: InvitationQueueStatus) => {
+    setQueueItems((items) =>
+      items.map((item) => (item.id === id ? { ...item, status, updatedAt: new Date().toISOString() } : item)),
+    )
+  }
 
   return (
     <section>
@@ -8531,10 +8564,10 @@ function MailWorkflow() {
         }
       />
       <div className="stat-grid">
-        <Stat title="待确认邀约" value={24} note="邮件/微信/企微合并" color="blue" />
+        <Stat title="待确认邀约" value={queueItems.filter((item) => item.status.includes('待') || item.status === '人工复核').length} note="邮件/微信/企微合并" color="blue" />
         <Stat title="邮件优先" value="1st" note="正式沟通首选" color="green" />
-        <Stat title="自动草稿" value={38} note="待HR确认发送" color="yellow" />
-        <Stat title="已回复" value={16} note="今日候选人响应" color="green" />
+        <Stat title="自动草稿" value={queueItems.length} note="待HR确认发送" color="yellow" />
+        <Stat title="已回复" value={queueItems.filter((item) => item.status === '已接受' || item.status === '需改期').length} note="今日候选人响应" color="green" />
       </div>
       <div className="grid two">
         <Card title="邀约通道优先级">
@@ -8648,6 +8681,68 @@ function MailWorkflow() {
         </div>
       </Card>
 
+      <Card title="新增邀约预约记录">
+        <div className="form-grid invitation-record-form">
+          <label>
+            <span>候选人</span>
+            <input
+              onChange={(event) => setNewInvitationRecord((draft) => ({ ...draft, candidate: event.target.value }))}
+              placeholder="输入候选人姓名"
+              value={newInvitationRecord.candidate}
+            />
+          </label>
+          <label>
+            <span>岗位</span>
+            <input
+              onChange={(event) => setNewInvitationRecord((draft) => ({ ...draft, job: event.target.value }))}
+              placeholder="输入岗位名称"
+              value={newInvitationRecord.job}
+            />
+          </label>
+          <label>
+            <span>公司主体</span>
+            <input
+              onChange={(event) => setNewInvitationRecord((draft) => ({ ...draft, company: event.target.value }))}
+              value={newInvitationRecord.company}
+            />
+          </label>
+          <label>
+            <span>首选通道</span>
+            <select
+              onChange={(event) =>
+                setNewInvitationRecord((draft) => ({
+                  ...draft,
+                  channel: event.target.value as InvitationChannelType,
+                }))
+              }
+              value={newInvitationRecord.channel}
+            >
+              {invitationProcessingOrder.map((channelType) => (
+                <option key={channelType} value={channelType}>{invitationChannelLabels[channelType]}</option>
+              ))}
+            </select>
+          </label>
+          <label className="wide">
+            <span>邀约动作</span>
+            <input
+              onChange={(event) => setNewInvitationRecord((draft) => ({ ...draft, action: event.target.value }))}
+              value={newInvitationRecord.action}
+            />
+          </label>
+        </div>
+        <div className="candidate-status-actions">
+          <button
+            className="button primary"
+            disabled={!newInvitationRecord.candidate.trim() || !newInvitationRecord.job.trim()}
+            onClick={addInvitationQueueRecord}
+            type="button"
+          >
+            加入邀约队列
+          </button>
+          <span className="muted">新增后自动保存到本机，刷新页面后仍保留。</span>
+        </div>
+      </Card>
+
       <Card title="邀约处理队列">
         <div className="table-wrap">
           <table>
@@ -8664,14 +8759,26 @@ function MailWorkflow() {
             </thead>
             <tbody>
               {queueItems.map((item) => (
-                <tr key={`${item.candidate}-${item.job}`}>
+                <tr key={item.id}>
                   <td><strong>{item.candidate}</strong></td>
                   <td>{item.job}</td>
                   <td>{item.company}</td>
                   <td>{invitationChannelLabels[item.channel]}</td>
                   <td>{item.account}</td>
                   <td>{item.action}</td>
-                  <td><span className="chip warn">{item.status}</span></td>
+                  <td>
+                    <select
+                      aria-label={`${item.candidate}邀约状态`}
+                      onChange={(event) =>
+                        updateInvitationRecordStatus(item.id, event.target.value as InvitationQueueStatus)
+                      }
+                      value={item.status}
+                    >
+                      {invitationQueueStatuses.map((status) => (
+                        <option key={status} value={status}>{status}</option>
+                      ))}
+                    </select>
+                  </td>
                 </tr>
               ))}
             </tbody>
