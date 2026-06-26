@@ -5464,6 +5464,77 @@ function JobPublishingCenter() {
                     加关键词
                   </button>
                 </div>
+                <div className="posting-edit-grid">
+                  <label>
+                    <span>岗位名称</span>
+                    <input
+                      onChange={(event) =>
+                        updatePostingCard(card.id, (item) => ({ ...item, title: event.target.value }))
+                      }
+                      value={card.title}
+                    />
+                  </label>
+                  <label>
+                    <span>英文名称</span>
+                    <input
+                      onChange={(event) =>
+                        updatePostingCard(card.id, (item) => ({ ...item, englishTitle: event.target.value }))
+                      }
+                      placeholder={codeProfile.englishTitle}
+                      value={card.englishTitle ?? ''}
+                    />
+                  </label>
+                  <label>
+                    <span>岗位缩写</span>
+                    <input
+                      onChange={(event) =>
+                        updatePostingCard(card.id, (item) => ({ ...item, jobCode: event.target.value.toUpperCase() }))
+                      }
+                      placeholder={codeProfile.jobCode}
+                      value={card.jobCode ?? ''}
+                    />
+                  </label>
+                  <label>
+                    <span>部门</span>
+                    <input
+                      onChange={(event) =>
+                        updatePostingCard(card.id, (item) => ({ ...item, department: event.target.value }))
+                      }
+                      value={card.department}
+                    />
+                  </label>
+                  <label>
+                    <span>目标人数</span>
+                    <input
+                      min={card.hiredCount}
+                      onChange={(event) =>
+                        updatePostingCard(card.id, (item) => ({
+                          ...item,
+                          targetHeadcount: Math.max(item.hiredCount, Number(event.target.value) || item.hiredCount),
+                        }))
+                      }
+                      type="number"
+                      value={card.targetHeadcount}
+                    />
+                  </label>
+                  <label>
+                    <span>发布状态</span>
+                    <select
+                      onChange={(event) =>
+                        updatePostingCard(card.id, (item) => ({
+                          ...item,
+                          jdStatus: event.target.value as JobPublishingCard['jdStatus'],
+                        }))
+                      }
+                      value={card.jdStatus}
+                    >
+                      <option>草稿</option>
+                      <option>待确认</option>
+                      <option>已发布</option>
+                      <option>暂停中</option>
+                    </select>
+                  </label>
+                </div>
                 <div className="posting-action-row">
                   <button className="table-action" onClick={() => updatePostingCard(card.id, (item) => adjustJobPostingHeadcount(item, 1))} type="button">
                     增加岗位
