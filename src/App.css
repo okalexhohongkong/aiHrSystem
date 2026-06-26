@@ -1916,6 +1916,42 @@
   color: #fff;
 }
 
+.candidate-status-note input {
+  width: 100%;
+  border: 1px solid #d7e5ef;
+  border-radius: 7px;
+  background: #fff;
+  color: #1f2937;
+  font-size: 12px;
+  padding: 8px 9px;
+}
+
+.candidate-operation-log {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 7px;
+}
+
+.candidate-operation-log > div {
+  border: 1px solid #e5eef6;
+  border-radius: 8px;
+  background: #fff;
+  padding: 8px;
+}
+
+.candidate-operation-log strong {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+}
+
+.candidate-operation-log p {
+  margin-top: 3px;
+  color: var(--support-text);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .candidate-board-list {
   display: grid;
   gap: 6px;

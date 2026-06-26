@@ -111,6 +111,13 @@ export function candidateBoardTimeText(appliedAt: string) {
   return `${year.slice(2)} ${month}${day} ${hour}:${minute}`
 }
 
+export function candidateOperationTimeText(at: string) {
+  const match = at.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/)
+  if (!match) return at
+  const [, , month, day, hour, minute] = match
+  return `${month}-${day} ${hour}:${minute}`
+}
+
 export function candidateJobCodeProfile(candidate: Pick<Candidate, 'postName' | 'postType'>): JobCodeProfile {
   const byPostType: Record<Candidate['postType'], string> = {
     finance: 'FIN',

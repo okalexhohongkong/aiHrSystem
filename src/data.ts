@@ -16,6 +16,14 @@ export type CandidateCommunication = {
   exchangedPhone: boolean
 }
 
+export type CandidateOperationLogEntry = {
+  action: string
+  at: string
+  fromStatus?: CandidateStatus
+  note?: string
+  toStatus?: CandidateStatus
+}
+
 export type CandidateSignalSource = '平台可见' | '人工观察' | '候选人自述' | '不可获取'
 export type CandidateDataFieldStatus = '已采集' | '待补充' | '不可获取' | '受限不采集'
 export type CandidateDataFieldSignal = {
@@ -71,6 +79,7 @@ export type Candidate = {
   salesInput?: SalesEvaluationInput
   transcript: string
   agentSummary: string
+  operationLog?: CandidateOperationLogEntry[]
 }
 
 const liChenGeneral: CandidateEvaluationInput = {

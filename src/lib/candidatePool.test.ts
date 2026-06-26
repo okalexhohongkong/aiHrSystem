@@ -15,6 +15,7 @@ import {
   candidateKeywordTone,
   candidateMatchScore,
   candidateMatchStatus,
+  candidateOperationTimeText,
   candidatePlatformAccountText,
   candidatePoolColumnLabels,
   dataFieldStatusCounts,
@@ -57,6 +58,7 @@ describe('candidate pool presentation helpers', () => {
       jobCode: 'AI-SDE',
     })
     expect(candidatePlatformAccountText(initialCandidates[0])).toBe('BOSS-0001')
+    expect(candidateOperationTimeText('2026-06-26T16:50:00+08:00')).toBe('06-26 16:50')
   })
 
   it('keeps candidate field toggles content-fit and compact', () => {

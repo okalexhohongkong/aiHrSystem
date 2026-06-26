@@ -85,6 +85,7 @@ import {
   candidateFocusMatches,
   candidateMatchScore,
   candidateMatchStatus,
+  candidateOperationTimeText,
   candidatePlatformAccountText,
   dataFieldStatusCounts,
   defaultAiTimeoutFallbackTemplates,
@@ -3827,6 +3828,7 @@ function Candidates({
   const [customDisplayField, setCustomDisplayField] = useState('')
   const [focusTags, setFocusTags] = useState<string[]>(defaultCandidateFocusTags)
   const [customFocusTag, setCustomFocusTag] = useState('')
+  const [statusNote, setStatusNote] = useState('')
   const selectedCandidate = candidates.find((candidate) => candidate.id === selectedId) ?? candidates[0]
   const sortedCandidates = sortCandidates(candidates, sortDirection, focusTags)
   const talentLibraryBoard = buildTalentLibraryBoard(candidates, sampleTalentArchiveContext)
@@ -3894,6 +3896,23 @@ function Candidates({
   const addCustomDisplayField = () => {
     setManualDisplayFields((fields) => addManualDisplayField(fields, customDisplayField))
     setCustomDisplayField('')
+  }
+  const updateCandidateStatus = (status: CandidateStatus) => {
+    const note = statusNote.trim()
+    updateCandidate(selectedCandidate.id, {
+      operationLog: [
+        {
+          action: '状态流转',
+          at: new Date().toISOString(),
+          fromStatus: selectedCandidate.status,
+          note: note || undefined,
+          toStatus: status,
+        },
+        ...(selectedCandidate.operationLog ?? []),
+      ].slice(0, 12),
+      status,
+    })
+    setStatusNote('')
   }
 
   return (
@@ -4002,12 +4021,29 @@ function Candidates({
               <button
                 className={selectedCandidate.status === status ? 'status-flow-button active' : 'status-flow-button'}
                 key={status}
-                onClick={() => updateCandidate(selectedCandidate.id, { status })}
+                onClick={() => updateCandidateStatus(status)}
                 type="button"
               >
                 {status}
               </button>
             ))}
+          </div>
+          <div className="candidate-status-note">
+            <input
+              onChange={(event) => setStatusNote(event.target.value)}
+              placeholder="状态备注，例如：已电话确认，薪资待谈，需补作品"
+              value={statusNote}
+            />
+          </div>
+          <div className="candidate-operation-log">
+            {(selectedCandidate.operationLog ?? []).slice(0, 4).map((log) => (
+              <div key={`${log.at}-${log.action}-${log.toStatus}`}>
+                <span>{candidateOperationTimeText(log.at)}</span>
+                <strong>{`${log.fromStatus ?? '原状态'} -> ${log.toStatus ?? selectedCandidate.status}`}</strong>
+                <p>{log.note || log.action}</p>
+              </div>
+            ))}
+            {!(selectedCandidate.operationLog ?? []).length && <p className="muted">暂无操作记录，状态变更后会自动留痕。</p>}
           </div>
           <p className="muted">状态变更会保存到本机数据；刷新页面后仍保留。</p>
         </div>
