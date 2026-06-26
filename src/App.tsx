@@ -4419,6 +4419,22 @@ function FirstEvaluation({
   useEffect(() => {
     writePersistedValue(firstEvaluationStorage, localPersistenceKeys.firstEvaluationManualDimensions, manualDimensionsByCandidate)
   }, [firstEvaluationStorage, manualDimensionsByCandidate])
+  const recommendForReview = () => {
+    const nextStatus: CandidateStatus = '推荐复试'
+    updateSelected({
+      operationLog: [
+        {
+          action: '初试评分推荐复试',
+          at: new Date().toISOString(),
+          fromStatus: selected.status,
+          note: `初试加权均分 ${weightedAverage}`,
+          toStatus: nextStatus,
+        },
+        ...(selected.operationLog ?? []),
+      ].slice(0, 12),
+      status: nextStatus,
+    })
+  }
 
   return (
     <section>
@@ -4428,7 +4444,7 @@ function FirstEvaluation({
         action={
           <>
             <span className="badge">加权均分 {weightedAverage}</span>
-            <button className="button primary" onClick={() => updateSelected({ status: '推荐复试' })}>推荐复试</button>
+            <button className="button primary" onClick={recommendForReview}>推荐复试</button>
           </>
         }
       />
@@ -7536,13 +7552,45 @@ function ReviewHomework({
   useEffect(() => {
     writePersistedValue(homeworkStorage, localPersistenceKeys.threeStageHomeworkTasks, homeworkTasks)
   }, [homeworkStorage, homeworkTasks])
+  const assignThreeStageHomework = () => {
+    const nextStatus: CandidateStatus = '待作业'
+    updateSelected({
+      homeworkStatus: '待提交',
+      operationLog: [
+        {
+          action: '布置三轮作业',
+          at: new Date().toISOString(),
+          fromStatus: selected.status,
+          note: `已布置 ${homeworkSummary.total} 个作业任务`,
+          toStatus: nextStatus,
+        },
+        ...(selected.operationLog ?? []),
+      ].slice(0, 12),
+      status: nextStatus,
+    })
+  }
+  const updateCandidateHomeworkStatus = (homeworkStatus: Candidate['homeworkStatus']) => {
+    updateSelected({
+      homeworkStatus,
+      operationLog: [
+        {
+          action: '更新作业提交状态',
+          at: new Date().toISOString(),
+          fromStatus: selected.status,
+          note: `作业状态：${selected.homeworkStatus} -> ${homeworkStatus}`,
+          toStatus: selected.status,
+        },
+        ...(selected.operationLog ?? []),
+      ].slice(0, 12),
+    })
+  }
 
   return (
     <section>
       <PageTitle
         title="三轮作业中心"
         subtitle="初试、复试、终试的出题、考官、答卷、邮件电话追踪、评分、存档和优秀案例沉淀。"
-        action={<button className="button primary" onClick={() => updateSelected({ homeworkStatus: '待提交', status: '待作业' })}>布置三轮作业</button>}
+        action={<button className="button primary" onClick={assignThreeStageHomework}>布置三轮作业</button>}
       />
       <Card title="三轮作业总览">
         <div className="final-score-panel">
@@ -7660,7 +7708,7 @@ function ReviewHomework({
             ))}
           </div>
           <div className="form-grid">
-            <label><span>提交状态</span><select defaultValue={selected.homeworkStatus} onChange={(event) => updateSelected({ homeworkStatus: event.target.value as Candidate['homeworkStatus'] })}><option>无作业</option><option>待提交</option><option>按时提交</option><option>逾期</option><option>放弃</option></select></label>
+            <label><span>提交状态</span><select value={selected.homeworkStatus} onChange={(event) => updateCandidateHomeworkStatus(event.target.value as Candidate['homeworkStatus'])}><option>无作业</option><option>待提交</option><option>按时提交</option><option>逾期</option><option>放弃</option></select></label>
             <label><span>作业态度</span><select defaultValue="正常"><option>积极</option><option>正常</option><option>敷衍</option><option>抵触拖延</option></select></label>
             <label className="wide"><span>评分标准</span><textarea defaultValue="岗位理解、结构完整、执行落地、表达清晰；每轮可按岗位自定义权重。" /></label>
           </div>
