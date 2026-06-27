@@ -17,6 +17,7 @@ import {
   candidateMatchStatus,
   candidateOperationTimeText,
   candidatePlatformAccountText,
+  classifyCandidateInvitationTier,
   candidatePoolColumnLabels,
   dataFieldStatusCounts,
   defaultAiTimeoutFallbackTemplates,
@@ -175,6 +176,11 @@ describe('candidate pool presentation helpers', () => {
     )
     expect(strategy.nextAction).toContain('人工')
     expect(strategy.archiveAdvice.decision).toBe('暂不沉淀')
+    expect(classifyCandidateInvitationTier(strategy)).toMatchObject({
+      allowQueue: true,
+      label: '值得争取签约',
+      reviewCadence: '立即',
+    })
   })
 
   it('recommends layered archive when timeliness and salary match are weak', () => {
@@ -195,6 +201,11 @@ describe('candidate pool presentation helpers', () => {
       reviewCadence: '30天复评',
     })
     expect(strategy.archiveAdvice.notes).toContain('薪酬差距')
+    expect(classifyCandidateInvitationTier(strategy)).toMatchObject({
+      allowQueue: false,
+      label: '值得收藏',
+      reviewCadence: '14天复评',
+    })
   })
 
   it('keeps AI timeout fallback manual-first and restricted to reviewed low-risk scripts', () => {

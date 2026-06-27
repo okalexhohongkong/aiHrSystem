@@ -348,6 +348,23 @@ export type CandidateFollowupStrategy = {
   urgencyScore: number
 }
 
+export type CandidateInvitationTierId =
+  | 'contractPush'
+  | 'inviteNow'
+  | 'chatFirst'
+  | 'collectAndReview'
+  | 'archiveObserve'
+
+export type CandidateInvitationTier = {
+  action: string
+  allowQueue: boolean
+  id: CandidateInvitationTierId
+  label: '值得争取签约' | '值得邀约' | '值得聊天' | '值得收藏' | '入库观察'
+  reason: string
+  reviewCadence: '立即' | '2小时内' | '当天内' | '14天复评' | '30天复评'
+  tone: 'excellent' | 'good' | 'normal' | 'weak' | 'danger'
+}
+
 export type AiFallbackTemplate = {
   approvedByAdmin: boolean
   content: string
@@ -644,6 +661,71 @@ export function buildCandidateFollowupStrategy(input: CandidateFollowupStrategyI
     talentLayer: input.talentLayer,
     timeWindow,
     urgencyScore: clampedScore,
+  }
+}
+
+export function classifyCandidateInvitationTier(strategy: CandidateFollowupStrategy): CandidateInvitationTier {
+  if (
+    strategy.priority === '立即联系' &&
+    strategy.modelScore >= 85 &&
+    strategy.salaryMatchPercent >= 85 &&
+    strategy.timeWindow.timeoutRisk !== '高'
+  ) {
+    return {
+      action: '立即邀约线上初试，并同步电话确认签约意向',
+      allowQueue: true,
+      id: 'contractPush',
+      label: '值得争取签约',
+      reason: '匹配度、薪酬和时效都较好，需要抢在候选人被其他公司截走前推进。',
+      reviewCadence: '立即',
+      tone: 'excellent',
+    }
+  }
+
+  if (strategy.priority === '立即联系' || strategy.priority === '优先跟进') {
+    return {
+      action: '邀约线上初试，补齐简历和关键佐证',
+      allowQueue: true,
+      id: 'inviteNow',
+      label: '值得邀约',
+      reason: '匹配度或紧急度较高，适合进入邀约预约队列。',
+      reviewCadence: '2小时内',
+      tone: 'good',
+    }
+  }
+
+  if (strategy.modelScore >= 60 || strategy.priority === '常规跟进') {
+    return {
+      action: '先聊天补资料，再决定是否邀约',
+      allowQueue: true,
+      id: 'chatFirst',
+      label: '值得聊天',
+      reason: '有可沟通价值，但需要补齐简历、作品、薪酬或到岗信息。',
+      reviewCadence: '当天内',
+      tone: 'normal',
+    }
+  }
+
+  if (strategy.modelScore >= 45 || strategy.archiveAdvice.decision === '轻量入库') {
+    return {
+      action: '收藏简历，后续按岗位缺口复评',
+      allowQueue: false,
+      id: 'collectAndReview',
+      label: '值得收藏',
+      reason: '当前不适合立即邀约，但可以保留为岗位补位或后续复评对象。',
+      reviewCadence: '14天复评',
+      tone: 'weak',
+    }
+  }
+
+  return {
+    action: '入库观察，暂不进入邀约队列',
+    allowQueue: false,
+    id: 'archiveObserve',
+    label: '入库观察',
+    reason: '匹配度、时效或薪酬条件暂不支持继续推进。',
+    reviewCadence: '30天复评',
+    tone: 'danger',
   }
 }
 

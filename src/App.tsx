@@ -87,6 +87,7 @@ import {
   candidateMatchStatus,
   candidateOperationTimeText,
   candidatePlatformAccountText,
+  classifyCandidateInvitationTier,
   dataFieldStatusCounts,
   defaultAiTimeoutFallbackTemplates,
   defaultCandidateFocusTags,
@@ -1516,6 +1517,9 @@ function App() {
   const [candidates, setCandidates] = useState<Candidate[]>(() =>
     readPersistedValue(appStorage, localPersistenceKeys.candidates, initialCandidates),
   )
+  const [invitationQueueItems, setInvitationQueueItems] = useState<InvitationQueueRecord[]>(() =>
+    readPersistedValue(appStorage, localPersistenceKeys.invitationQueueRecords, defaultInvitationQueueRecords),
+  )
   const [selectedId, setSelectedId] = useState(1)
   const [searchQuery, setSearchQuery] = useState('')
   const [theme, setTheme] = useState<ThemeId>(() =>
@@ -1550,6 +1554,10 @@ function App() {
   useEffect(() => {
     writePersistedValue(appStorage, localPersistenceKeys.candidates, candidates)
   }, [appStorage, candidates])
+
+  useEffect(() => {
+    writePersistedValue(appStorage, localPersistenceKeys.invitationQueueRecords, invitationQueueItems)
+  }, [appStorage, invitationQueueItems])
 
   useEffect(() => {
     writePersistedValue(appStorage, localPersistenceKeys.theme, theme)
@@ -1840,6 +1848,18 @@ function App() {
   function addCandidate(candidate: Candidate) {
     setCandidates((items) => (items.some((item) => item.id === candidate.id) ? items : [candidate, ...items]))
     setSelectedId(candidate.id)
+  }
+
+  function addInvitationQueueItem(record: InvitationQueueRecord) {
+    setInvitationQueueItems((items) =>
+      items.some((item) => item.id === record.id) ? items : [record, ...items],
+    )
+  }
+
+  function updateInvitationQueueItemStatus(id: string, status: InvitationQueueStatus) {
+    setInvitationQueueItems((items) =>
+      items.map((item) => (item.id === id ? { ...item, status, updatedAt: new Date().toISOString() } : item)),
+    )
   }
 
   function moveCard(draggedId: string, targetId: string) {
@@ -2179,7 +2199,9 @@ function App() {
           {section === 'candidates' && (
             <Candidates
               addCandidate={addCandidate}
+              addInvitationQueueItem={addInvitationQueueItem}
               candidates={candidates}
+              invitationQueueItems={invitationQueueItems}
               selectedId={selectedId}
               setSelectedId={setSelectedId}
               updateCandidate={updateCandidate}
@@ -2204,7 +2226,13 @@ function App() {
           {section === 'mobileWork' && <MobileWorkTerminal />}
           {section === 'autoDispatch' && <AutoDispatchCenter />}
           {section === 'invitationChannels' && <InvitationChannels />}
-          {section === 'mail' && <MailWorkflow />}
+          {section === 'mail' && (
+            <MailWorkflow
+              addInvitationQueueItem={addInvitationQueueItem}
+              queueItems={invitationQueueItems}
+              updateInvitationRecordStatus={updateInvitationQueueItemStatus}
+            />
+          )}
           {section === 'reports' && <Reports candidates={candidates} />}
           {section === 'platform' && <PlatformPlan />}
           {section === 'theme' && (
@@ -3824,13 +3852,17 @@ function buildAutoDispatchSearchEntries(): GlobalSearchEntry[] {
 
 function Candidates({
   addCandidate,
+  addInvitationQueueItem,
   candidates,
+  invitationQueueItems,
   selectedId,
   setSelectedId,
   updateCandidate,
 }: {
   addCandidate: (candidate: Candidate) => void
+  addInvitationQueueItem: (record: InvitationQueueRecord) => void
   candidates: Candidate[]
+  invitationQueueItems: InvitationQueueRecord[]
   selectedId: number
   setSelectedId: (id: number) => void
   updateCandidate: (candidateId: number, patch: Partial<Candidate>) => void
@@ -3940,6 +3972,36 @@ function Candidates({
       status,
     })
     setStatusNote('')
+  }
+  const queueCandidateForInvitation = (candidate: Candidate, action: string) => {
+    const alreadyQueued = invitationQueueItems.some(
+      (item) => item.candidate === candidate.name && item.job === candidate.postName && item.status !== '已接受',
+    )
+    if (alreadyQueued) return
+
+    const record = createInvitationQueueRecord({
+      account: '邮件预约',
+      action,
+      candidate: candidate.name,
+      channel: 'email',
+      company: '黑卫士科技',
+      id: `candidate-${candidate.id}-invite-${Date.now()}`,
+      job: candidate.postName,
+      status: '待HR确认',
+    })
+    addInvitationQueueItem(record)
+    updateCandidate(candidate.id, {
+      operationLog: [
+        {
+          action: '加入邀约队列',
+          at: new Date().toISOString(),
+          note: `${record.action} / ${invitationChannelLabels[record.channel]}`,
+          fromStatus: candidate.status,
+          toStatus: candidate.status,
+        },
+        ...(candidate.operationLog ?? []),
+      ].slice(0, 12),
+    })
   }
   const updateResumeImportDraft = <Key extends keyof CandidateResumeImportDraft>(
     key: Key,
@@ -4353,31 +4415,49 @@ function Candidates({
       </Card>
       <Card title="候选人优先跟进队列">
         <div className="followup-queue-list">
-          {followupQueue.slice(0, 5).map(({ candidate, strategy }) => (
-            <div className="followup-queue-row" key={candidate.id}>
-              <div>
-                <strong>{candidate.name}</strong>
-                <p>
-                  {candidateJobCode(candidate)} / {candidate.postName} / {strategy.timeWindow.label}
-                  {strategy.timeWindow.hoursSinceApplied === null ? '' : ` / 已过${strategy.timeWindow.hoursSinceApplied}小时`}
-                </p>
+          {followupQueue.slice(0, 5).map(({ candidate, strategy }) => {
+            const tier = classifyCandidateInvitationTier(strategy)
+            const alreadyQueued = invitationQueueItems.some(
+              (item) => item.candidate === candidate.name && item.job === candidate.postName && item.status !== '已接受',
+            )
+
+            return (
+              <div className="followup-queue-row" key={candidate.id}>
+                <div>
+                  <strong>{candidate.name}</strong>
+                  <p>
+                    {candidateJobCode(candidate)} / {candidate.postName} / {strategy.timeWindow.label}
+                    {strategy.timeWindow.hoursSinceApplied === null ? '' : ` / 已过${strategy.timeWindow.hoursSinceApplied}小时`}
+                  </p>
+                </div>
+                <div>
+                  <span className={`match-status-badge tone-${tier.tone}`}>
+                    {tier.label}
+                  </span>
+                  <strong>{strategy.urgencyScore}</strong>
+                </div>
+                <div>
+                  <p>{strategy.reasons.join('、')}</p>
+                  <small>{tier.action}</small>
+                </div>
+                <div>
+                  <span>{strategy.archiveAdvice.library}</span>
+                  <small>{tier.reviewCadence} / {strategy.archiveAdvice.reviewCadence}</small>
+                </div>
+                <div className="followup-queue-actions">
+                  <button
+                    className={tier.allowQueue ? 'table-action active-action' : 'table-action'}
+                    disabled={!tier.allowQueue || alreadyQueued}
+                    onClick={() => queueCandidateForInvitation(candidate, tier.action)}
+                    type="button"
+                  >
+                    {alreadyQueued ? '已入邀约队列' : tier.allowQueue ? '加入邀约' : '仅入库'}
+                  </button>
+                  <small>{tier.reason}</small>
+                </div>
               </div>
-              <div>
-                <span className={`match-status-badge tone-${strategy.priority === '立即联系' ? 'excellent' : strategy.priority === '优先跟进' ? 'good' : strategy.priority === '常规跟进' ? 'normal' : 'weak'}`}>
-                  {strategy.priority}
-                </span>
-                <strong>{strategy.urgencyScore}</strong>
-              </div>
-              <div>
-                <p>{strategy.reasons.join('、')}</p>
-                <small>{strategy.nextAction}</small>
-              </div>
-              <div>
-                <span>{strategy.archiveAdvice.library}</span>
-                <small>{strategy.archiveAdvice.reviewCadence}</small>
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
         <div className="notice">{followupQueue[0]?.strategy.aiFallbackBoundary}</div>
       </Card>
@@ -8961,11 +9041,15 @@ const invitationProcessingAccounts: InvitationChannelAccount[] = [
   },
 ]
 
-function MailWorkflow() {
-  const mailStorage = browserLocalStorage()
-  const [queueItems, setQueueItems] = useState<InvitationQueueRecord[]>(() =>
-    readPersistedValue(mailStorage, localPersistenceKeys.invitationQueueRecords, defaultInvitationQueueRecords),
-  )
+function MailWorkflow({
+  addInvitationQueueItem,
+  queueItems,
+  updateInvitationRecordStatus,
+}: {
+  addInvitationQueueItem: (record: InvitationQueueRecord) => void
+  queueItems: InvitationQueueRecord[]
+  updateInvitationRecordStatus: (id: string, status: InvitationQueueStatus) => void
+}) {
   const [newInvitationRecord, setNewInvitationRecord] = useState({
     action: '邀约线上初试',
     candidate: '',
@@ -8990,10 +9074,6 @@ function MailWorkflow() {
     jobName: '自媒体创意制作',
     stage: '补充资料',
   })
-  useEffect(() => {
-    writePersistedValue(mailStorage, localPersistenceKeys.invitationQueueRecords, queueItems)
-  }, [mailStorage, queueItems])
-
   const accountForChannel = (channel: InvitationChannelType) =>
     invitationProcessingAccounts.find((account) => account.channelType === channel)?.accountName ??
     invitationChannelLabels[channel]
@@ -9005,13 +9085,8 @@ function MailWorkflow() {
       account: accountForChannel(newInvitationRecord.channel),
       status: '待HR确认',
     })
-    setQueueItems((items) => [record, ...items])
+    addInvitationQueueItem(record)
     setNewInvitationRecord((draft) => ({ ...draft, candidate: '', job: '' }))
-  }
-  const updateInvitationRecordStatus = (id: string, status: InvitationQueueStatus) => {
-    setQueueItems((items) =>
-      items.map((item) => (item.id === id ? { ...item, status, updatedAt: new Date().toISOString() } : item)),
-    )
   }
 
   return (

@@ -2249,7 +2249,7 @@
 
 .followup-queue-row {
   display: grid;
-  grid-template-columns: minmax(130px, 0.8fr) minmax(92px, 0.42fr) minmax(260px, 1.5fr) minmax(150px, 0.7fr);
+  grid-template-columns: minmax(130px, 0.78fr) minmax(92px, 0.42fr) minmax(240px, 1.35fr) minmax(130px, 0.58fr) minmax(138px, 0.58fr);
   gap: 10px;
   align-items: center;
   min-height: var(--dense-row-min-height);
@@ -2292,6 +2292,23 @@
   color: var(--primary-ink);
   font-size: 22px;
   line-height: 1;
+}
+
+.followup-queue-actions {
+  display: grid;
+  justify-items: stretch;
+  gap: 4px;
+}
+
+.followup-queue-actions .table-action {
+  width: 100%;
+  justify-content: center;
+}
+
+.followup-queue-actions small {
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.35;
 }
 
 .ai-fallback-panel {
