@@ -4108,6 +4108,89 @@ label span {
   line-height: 1.4;
 }
 
+.invitation-schedule-list,
+.invitation-draft-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.invitation-schedule-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.1fr) minmax(260px, 1.25fr) auto;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid #d7e5ef;
+  border-radius: 8px;
+  background: #fff;
+  padding: 9px 10px;
+}
+
+.invitation-schedule-row:nth-child(even),
+.invitation-draft-row:nth-child(even) {
+  background: #eff8ff;
+}
+
+.invitation-schedule-row strong,
+.invitation-schedule-row span,
+.invitation-schedule-row p,
+.invitation-schedule-row small,
+.invitation-draft-row strong,
+.invitation-draft-row p,
+.invitation-draft-row small {
+  display: block;
+}
+
+.invitation-schedule-row strong,
+.invitation-draft-row strong {
+  color: var(--core-text);
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.3;
+}
+
+.invitation-schedule-row span {
+  color: var(--primary-ink);
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.35;
+}
+
+.invitation-schedule-row p,
+.invitation-schedule-row small,
+.invitation-draft-row p,
+.invitation-draft-row small {
+  margin: 3px 0 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.invitation-schedule-row .badge {
+  justify-self: end;
+  white-space: nowrap;
+}
+
+.invitation-draft-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.72fr) minmax(360px, 1.28fr);
+  gap: 10px;
+  align-items: start;
+  border: 1px solid #d7e5ef;
+  border-radius: 8px;
+  background: #fff;
+  padding: 10px;
+}
+
+.invitation-draft-row textarea {
+  min-height: 118px;
+  resize: vertical;
+  background: #fff;
+  color: #1f2937;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
 .security-rule-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -8791,6 +8874,20 @@ label span {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .invitation-schedule-row,
+  .invitation-draft-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .invitation-schedule-row .badge,
+  .invitation-draft-row textarea {
+    grid-column: 1 / -1;
+  }
+
+  .invitation-schedule-row .badge {
+    justify-self: start;
+  }
+
   .candidate-row-signals,
   .candidate-row-status {
     grid-column: 1 / -1;
@@ -8942,6 +9039,8 @@ label span {
   .distribution-grid,
   .pipeline-grid,
   .invitation-priority-grid,
+  .invitation-schedule-row,
+  .invitation-draft-row,
   .reply-template-grid,
   .email-module-grid,
   .metric-badge-grid,

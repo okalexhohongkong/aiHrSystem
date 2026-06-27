@@ -49,6 +49,23 @@ export type InvitationQueueRecord = {
   updatedAt: string
 }
 
+export type InvitationQueueDraft = {
+  body: string
+  subject: string
+}
+
+export type InvitationScheduleRow = {
+  id: string
+  candidate: string
+  job: string
+  startsAt: string
+  mode: AppointmentMode
+  location: string
+  rounds: string
+  status: InvitationQueueStatus
+  syncHint: string
+}
+
 export const invitationQueueStatuses: InvitationQueueStatus[] = [
   '待HR确认',
   '待补充作品集',
@@ -436,6 +453,65 @@ export function summarizeAppointmentInfo(appointment: AppointmentInfo) {
   }
 
   return base.filter(Boolean).join(' / ')
+}
+
+function stageFromInvitationAction(action: string): InvitationMessageInput['stage'] {
+  if (action.includes('补充')) return '补充资料'
+  if (action.includes('复试')) return '复试邀约'
+  if (action.includes('作业')) return '作业提醒'
+  if (action.includes('婉拒')) return '婉拒'
+  return '初试邀约'
+}
+
+export function composeInvitationQueueDraft(record: InvitationQueueRecord): InvitationQueueDraft {
+  const appointment = record.appointment ?? defaultAppointmentForQueueRecord(record)
+
+  if (record.draftMessage?.trim()) {
+    return {
+      body: record.draftMessage,
+      subject: `${record.company}-${record.job}邀约预约处理`,
+    }
+  }
+
+  const composed = composeAppointmentMessage({
+    appointment,
+    candidateName: record.candidate,
+    channelType: record.channel,
+    companyName: record.company,
+    contactAccount: record.account,
+    instructionModuleIds: record.channel === 'email' ? defaultEmailInstructionModuleIds : undefined,
+    jobName: record.job,
+    stage: stageFromInvitationAction(record.action),
+  })
+
+  return {
+    body: composed.body,
+    subject: composed.subject,
+  }
+}
+
+export function buildInvitationScheduleRows(records: InvitationQueueRecord[]): InvitationScheduleRow[] {
+  return records.map((record) => {
+    const appointment = record.appointment ?? defaultAppointmentForQueueRecord(record)
+    const location =
+      appointment.mode === 'offlineInterview'
+        ? [appointment.offlineAddress, appointment.floorRoom].filter(Boolean).join(' / ') || '线下面试地点待确认'
+        : appointment.mode === 'onlineMeeting'
+          ? [appointment.meetingPlatform, appointment.meetingRoom].filter(Boolean).join(' / ') || '线上会议室待确认'
+          : '电话面试'
+
+    return {
+      candidate: record.candidate,
+      id: `invitation-schedule-${record.id}`,
+      job: record.job,
+      location,
+      mode: appointment.mode,
+      rounds: appointment.interviewRounds.join(' -> '),
+      startsAt: appointment.appointmentAt,
+      status: record.status,
+      syncHint: record.status === '已接受' ? '可同步日历' : '待确认后同步日历',
+    }
+  })
 }
 
 export function composeEmailInstructionBlock(moduleIds: EmailInstructionModuleId[] = defaultEmailInstructionModuleIds) {

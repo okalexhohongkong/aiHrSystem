@@ -3,10 +3,12 @@ import {
   accountsByChannel,
   accountsByCompany,
   appointmentModeLabel,
+  buildInvitationScheduleRows,
   createInvitationQueueRecord,
   composeInvitationMessage,
   composeAppointmentMessage,
   composeEmailInstructionBlock,
+  composeInvitationQueueDraft,
   canSendThroughChannel,
   defaultAppointmentForQueueRecord,
   defaultInvitationQueueRecords,
@@ -315,5 +317,35 @@ describe('third-party invitation channels', () => {
     expect(summarizeAppointmentInfo(offline)).toContain('线下面试')
     expect(phone.mode).toBe('phoneInterview')
     expect(summarizeAppointmentInfo(phone)).toContain('电话面试')
+  })
+
+  it('builds editable invitation drafts and schedule rows from queue records', () => {
+    const record = createInvitationQueueRecord({
+      account: 'hr@heiwenshi.ai',
+      action: '邀约线下面试',
+      appointment: defaultAppointmentForQueueRecord({
+        action: '邀约线下面试',
+        channel: 'email',
+        job: '财务经理',
+      }),
+      candidate: '王五',
+      channel: 'email',
+      company: '黑卫士科技',
+      job: '财务经理',
+      now: '2026-06-27T21:00:00+08:00',
+      status: '待HR确认',
+    })
+    const draft = composeInvitationQueueDraft(record)
+    const rows = buildInvitationScheduleRows([record])
+
+    expect(draft.subject).toBe('黑卫士科技-财务经理邀约预约处理')
+    expect(draft.body).toContain('线下面试')
+    expect(draft.body).toContain('到场填写')
+    expect(rows[0]).toMatchObject({
+      candidate: '王五',
+      job: '财务经理',
+      rounds: '初试 -> 复试',
+      syncHint: '待确认后同步日历',
+    })
   })
 })

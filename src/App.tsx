@@ -157,6 +157,8 @@ import {
 } from './lib/integrationAdapters'
 import {
   composeInvitationMessage,
+  buildInvitationScheduleRows,
+  composeInvitationQueueDraft,
   createInvitationQueueRecord,
   defaultAppointmentForQueueRecord,
   defaultInvitationQueueRecords,
@@ -1864,6 +1866,12 @@ function App() {
     )
   }
 
+  function updateInvitationQueueItem(id: string, patch: Partial<InvitationQueueRecord>) {
+    setInvitationQueueItems((items) =>
+      items.map((item) => (item.id === id ? { ...item, ...patch, updatedAt: new Date().toISOString() } : item)),
+    )
+  }
+
   function moveCard(draggedId: string, targetId: string) {
     setLayoutProfiles((profiles) => ({
       ...profiles,
@@ -2232,6 +2240,7 @@ function App() {
             <MailWorkflow
               addInvitationQueueItem={addInvitationQueueItem}
               queueItems={invitationQueueItems}
+              updateInvitationQueueItem={updateInvitationQueueItem}
               updateInvitationRecordStatus={updateInvitationQueueItemStatus}
             />
           )}
@@ -9047,10 +9056,12 @@ const invitationProcessingAccounts: InvitationChannelAccount[] = [
 function MailWorkflow({
   addInvitationQueueItem,
   queueItems,
+  updateInvitationQueueItem,
   updateInvitationRecordStatus,
 }: {
   addInvitationQueueItem: (record: InvitationQueueRecord) => void
   queueItems: InvitationQueueRecord[]
+  updateInvitationQueueItem: (id: string, patch: Partial<InvitationQueueRecord>) => void
   updateInvitationRecordStatus: (id: string, status: InvitationQueueStatus) => void
 }) {
   const [newInvitationRecord, setNewInvitationRecord] = useState({
@@ -9077,6 +9088,7 @@ function MailWorkflow({
     jobName: '自媒体创意制作',
     stage: '补充资料',
   })
+  const invitationScheduleRows = buildInvitationScheduleRows(queueItems)
   const accountForChannel = (channel: InvitationChannelType) =>
     invitationProcessingAccounts.find((account) => account.channelType === channel)?.accountName ??
     invitationChannelLabels[channel]
@@ -9289,6 +9301,27 @@ function MailWorkflow({
         </div>
       </Card>
 
+      <Card title="面试日程预览">
+        <div className="invitation-schedule-list">
+          {invitationScheduleRows.map((row) => (
+            <div className="invitation-schedule-row" key={row.id}>
+              <div>
+                <strong>{row.candidate} / {row.job}</strong>
+                <p>{row.startsAt} / {row.rounds}</p>
+              </div>
+              <div>
+                <span>{row.location}</span>
+                <small>{row.syncHint}</small>
+              </div>
+              <span className="badge">{row.status}</span>
+            </div>
+          ))}
+        </div>
+        <div className="notice">
+          这里先做单机日程预览；正式写入 Apple 日历、Outlook、企业微信日程或 ICS 订阅时需要账号授权。
+        </div>
+      </Card>
+
       <Card title="邀约处理队列">
         <div className="table-wrap">
           <table>
@@ -9370,6 +9403,32 @@ function MailWorkflow({
         </div>
         <div className="notice">
           所有自动生成内容先进入待确认队列；系统负责写好话术和草稿，真正发送由HR确认或后端安全队列执行。
+        </div>
+      </Card>
+
+      <Card title="邀约草稿编辑 / 预览">
+        <div className="invitation-draft-list">
+          {queueItems.map((item) => {
+            const draft = composeInvitationQueueDraft(item)
+
+            return (
+              <div className="invitation-draft-row" key={`${item.id}-draft`}>
+                <div>
+                  <strong>{item.candidate} / {item.job}</strong>
+                  <p>{draft.subject}</p>
+                  <small>{invitationChannelLabels[item.channel]} / {item.account} / {item.status}</small>
+                </div>
+                <textarea
+                  aria-label={`${item.candidate}邀约草稿`}
+                  onChange={(event) => updateInvitationQueueItem(item.id, { draftMessage: event.target.value })}
+                  value={draft.body}
+                />
+              </div>
+            )
+          })}
+        </div>
+        <div className="notice">
+          草稿可以直接修改并保存到本机；当前仍然只做草稿和人工确认，不调用真实外发。
         </div>
       </Card>
     </section>
