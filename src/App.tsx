@@ -158,12 +158,14 @@ import {
 import {
   composeInvitationMessage,
   createInvitationQueueRecord,
+  defaultAppointmentForQueueRecord,
   defaultInvitationQueueRecords,
   defaultEmailInstructionModuleIds,
   emailInstructionModules,
   invitationChannelLabels,
   invitationProcessingOrder,
   invitationQueueStatuses,
+  summarizeAppointmentInfo,
   validateDedicatedCompanyAccount,
   type InvitationChannelAccount,
   type InvitationChannelType,
@@ -3982,6 +3984,7 @@ function Candidates({
     const record = createInvitationQueueRecord({
       account: '邮件预约',
       action,
+      appointment: defaultAppointmentForQueueRecord({ action, channel: 'email', job: candidate.postName }),
       candidate: candidate.name,
       channel: 'email',
       company: '黑卫士科技',
@@ -9083,6 +9086,11 @@ function MailWorkflow({
     const record = createInvitationQueueRecord({
       ...newInvitationRecord,
       account: accountForChannel(newInvitationRecord.channel),
+      appointment: defaultAppointmentForQueueRecord({
+        action: newInvitationRecord.action,
+        channel: newInvitationRecord.channel,
+        job: newInvitationRecord.job,
+      }),
       status: '待HR确认',
     })
     addInvitationQueueItem(record)
@@ -9321,6 +9329,44 @@ function MailWorkflow({
               ))}
             </tbody>
           </table>
+        </div>
+        <div className="appointment-detail-list">
+          {queueItems.map((item) => {
+            const appointment = item.appointment ?? defaultAppointmentForQueueRecord(item)
+
+            return (
+              <div className="appointment-detail-row" key={`${item.id}-appointment`}>
+                <div>
+                  <strong>{item.candidate} / {item.job}</strong>
+                  <p>{summarizeAppointmentInfo(appointment)}</p>
+                  <small>{item.action} / {invitationChannelLabels[item.channel]} / {item.status}</small>
+                </div>
+                <div>
+                  <span>轮次</span>
+                  <strong>{appointment.interviewRounds.join(' -> ')}</strong>
+                  <small>反馈：{appointment.feedbackStatus}</small>
+                </div>
+                <div>
+                  <span>{appointment.mode === 'offlineInterview' ? '到场指引' : appointment.mode === 'onlineMeeting' ? '会议指引' : '电话指引'}</span>
+                  <p>
+                    {appointment.mode === 'offlineInterview'
+                      ? `${appointment.offlineAddress ?? '地址待确认'} / ${appointment.floorRoom ?? '楼层待确认'} / 接待：${appointment.receptionist ?? '待确认'}`
+                      : appointment.mode === 'onlineMeeting'
+                        ? `${appointment.meetingPlatform ?? '会议平台待确认'} / ${appointment.meetingRoom ?? '会议室待确认'}`
+                        : '请保持电话畅通，HR按预约时间联系。'}
+                  </p>
+                </div>
+                <div>
+                  <span>资料/路线</span>
+                  <p>
+                    {appointment.mode === 'offlineInterview'
+                      ? `${appointment.subwayRoute ?? '地铁路线待确认'} / ${(appointment.forms ?? ['候选人登记表']).join('、')}`
+                      : '完整说明回落到邮件，微信/短信只做短提醒。'}
+                  </p>
+                </div>
+              </div>
+            )
+          })}
         </div>
         <div className="notice">
           所有自动生成内容先进入待确认队列；系统负责写好话术和草稿，真正发送由HR确认或后端安全队列执行。

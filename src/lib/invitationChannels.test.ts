@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest'
 import {
   accountsByChannel,
   accountsByCompany,
+  appointmentModeLabel,
   createInvitationQueueRecord,
   composeInvitationMessage,
   composeAppointmentMessage,
   composeEmailInstructionBlock,
   canSendThroughChannel,
+  defaultAppointmentForQueueRecord,
   defaultInvitationQueueRecords,
   defaultEmailInstructionModuleIds,
   defaultJobAppointmentScripts,
@@ -18,6 +20,7 @@ import {
   invitationQueueStatuses,
   scriptForJob,
   selectPreferredChannel,
+  summarizeAppointmentInfo,
   validateDedicatedCompanyAccount,
   type InvitationChannelAccount,
 } from './invitationChannels'
@@ -287,5 +290,30 @@ describe('third-party invitation channels', () => {
       status: '待HR确认',
       updatedAt: '2026-06-26T08:20:00+08:00',
     })
+  })
+
+  it('adds appointment details and summaries for queue records', () => {
+    const online = defaultAppointmentForQueueRecord({
+      action: '邀约线上初试',
+      channel: 'email',
+      job: '业务经理',
+    })
+    const offline = defaultAppointmentForQueueRecord({
+      action: '邀约线下面试',
+      channel: 'email',
+      job: '财务经理',
+    })
+    const phone = defaultAppointmentForQueueRecord({
+      action: '电话确认',
+      channel: 'phone',
+      job: 'AI系统开发',
+    })
+
+    expect(appointmentModeLabel(online.mode)).toBe('线上会议')
+    expect(summarizeAppointmentInfo(online)).toContain('腾讯会议')
+    expect(offline.forms).toEqual(expect.arrayContaining(['候选人登记表', '资料授权确认表']))
+    expect(summarizeAppointmentInfo(offline)).toContain('线下面试')
+    expect(phone.mode).toBe('phoneInterview')
+    expect(summarizeAppointmentInfo(phone)).toContain('电话面试')
   })
 })

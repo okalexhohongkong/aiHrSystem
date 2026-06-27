@@ -43,6 +43,8 @@ export type InvitationQueueRecord = {
   company: string
   account: string
   action: string
+  appointment?: AppointmentInfo
+  draftMessage?: string
   status: InvitationQueueStatus
   updatedAt: string
 }
@@ -61,6 +63,14 @@ export const defaultInvitationQueueRecords: InvitationQueueRecord[] = [
   {
     account: 'hr@heiwenshi.ai',
     action: '邀约线上初试',
+    appointment: {
+      appointmentAt: '2026-06-22 15:00',
+      feedbackStatus: '待接受',
+      interviewRounds: ['线上沟通', '初试'],
+      meetingPlatform: '腾讯会议',
+      meetingRoom: '腾讯会议 888-666-123',
+      mode: 'onlineMeeting',
+    },
     candidate: '李晨',
     channel: 'email',
     company: '黑卫士科技',
@@ -72,6 +82,14 @@ export const defaultInvitationQueueRecords: InvitationQueueRecord[] = [
   {
     account: '微信-内容招聘1号',
     action: '生成微信问候语',
+    appointment: {
+      appointmentAt: '2026-06-22 16:30',
+      feedbackStatus: '待接受',
+      interviewRounds: ['作品沟通', '初试'],
+      meetingPlatform: '飞书会议',
+      meetingRoom: '飞书会议 room-content-01',
+      mode: 'onlineMeeting',
+    },
     candidate: '陈琳',
     channel: 'wechat',
     company: '黑卫士市场中心',
@@ -83,6 +101,17 @@ export const defaultInvitationQueueRecords: InvitationQueueRecord[] = [
   {
     account: '企微-技术招聘组',
     action: '复试邀约',
+    appointment: {
+      appointmentAt: '2026-06-23 10:30',
+      feedbackStatus: '需改期',
+      forms: ['候选人登记表', '资料授权确认表', '岗位信息确认表'],
+      interviewRounds: ['复试', '终试'],
+      floorRoom: '12层 1206会议室',
+      mode: 'offlineInterview',
+      offlineAddress: '上海市浦东新区黑卫士科技中心',
+      receptionist: '王主管',
+      subwayRoute: '地铁2号线科技园站B口，步行6分钟。',
+    },
     candidate: '周敏',
     channel: 'wecom',
     company: '黑卫士智能硬件',
@@ -94,6 +123,12 @@ export const defaultInvitationQueueRecords: InvitationQueueRecord[] = [
   {
     account: '短信签名-黑卫士招聘',
     action: '短信提醒',
+    appointment: {
+      appointmentAt: '2026-06-23 14:00',
+      feedbackStatus: '待接受',
+      interviewRounds: ['电话确认', '线下面试'],
+      mode: 'phoneInterview',
+    },
     candidate: '赵磊',
     channel: 'sms',
     company: '黑卫士市场中心',
@@ -323,12 +358,84 @@ export function createInvitationQueueRecord(
     ...input,
     account: input.account.trim() || invitationChannelLabels[input.channel],
     action: input.action.trim() || '邀约预约',
+    appointment: input.appointment,
     candidate: safeCandidate,
     company: input.company.trim() || '待确认公司主体',
+    draftMessage: input.draftMessage,
     id: input.id ?? `invite-${updatedAt.replace(/[^0-9]/g, '').slice(0, 14)}-${safeCandidate.length}`,
     job: safeJob,
     updatedAt,
   }
+}
+
+export function defaultAppointmentForQueueRecord(
+  input: Pick<InvitationQueueRecord, 'action' | 'channel' | 'job'>,
+): AppointmentInfo {
+  const isOffline = input.action.includes('线下') || input.channel === 'phone'
+  const isPhone = input.action.includes('电话') || input.channel === 'phone'
+
+  if (isPhone) {
+    return {
+      appointmentAt: '待确认',
+      feedbackStatus: '待接受',
+      interviewRounds: ['电话确认', '初试'],
+      mode: 'phoneInterview',
+    }
+  }
+
+  if (isOffline) {
+    return {
+      appointmentAt: '待确认',
+      drivingRoute: '导航到公司地址，车牌和停车信息由HR确认。',
+      feedbackStatus: '待接受',
+      floorRoom: '待确认楼层/会议室',
+      forms: ['候选人登记表', '资料授权确认表', '岗位信息确认表'],
+      interviewRounds: ['初试', '复试'],
+      mode: 'offlineInterview',
+      offlineAddress: '待确认公司地址',
+      receptionist: '待确认接待人',
+      subwayRoute: '按公司地址导航到最近地铁站。',
+      transitRoute: '按公司地址导航到附近公交站。',
+    }
+  }
+
+  return {
+    appointmentAt: '待确认',
+    feedbackStatus: '待接受',
+    interviewRounds: input.action.includes('复试') ? ['复试'] : ['线上沟通', '初试'],
+    meetingPlatform: '腾讯会议',
+    meetingRoom: `${input.job}线上会议室待确认`,
+    mode: 'onlineMeeting',
+  }
+}
+
+export function appointmentModeLabel(mode: AppointmentMode) {
+  const labels: Record<AppointmentMode, string> = {
+    offlineInterview: '线下面试',
+    onlineMeeting: '线上会议',
+    phoneInterview: '电话面试',
+  }
+
+  return labels[mode]
+}
+
+export function summarizeAppointmentInfo(appointment: AppointmentInfo) {
+  const base = [
+    appointmentModeLabel(appointment.mode),
+    appointment.appointmentAt,
+    appointment.feedbackStatus,
+    appointment.interviewRounds.join(' -> '),
+  ]
+
+  if (appointment.mode === 'onlineMeeting') {
+    base.push(appointment.meetingPlatform ?? '会议平台待确认', appointment.meetingRoom ?? '会议室待确认')
+  }
+
+  if (appointment.mode === 'offlineInterview') {
+    base.push(appointment.offlineAddress ?? '地址待确认', appointment.floorRoom ?? '楼层房间待确认')
+  }
+
+  return base.filter(Boolean).join(' / ')
 }
 
 export function composeEmailInstructionBlock(moduleIds: EmailInstructionModuleId[] = defaultEmailInstructionModuleIds) {
