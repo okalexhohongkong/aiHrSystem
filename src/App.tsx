@@ -143,6 +143,11 @@ import {
   deliveryStages,
   deliveryStatusLabel,
 } from './lib/deliveryPlan'
+import {
+  createCandidateFromResumeDraft,
+  defaultCandidateResumeImportDraft,
+  type CandidateResumeImportDraft,
+} from './lib/resumeImport'
 import { hrFunctionModules, permissionLevels, summarizeHrPermissionSystem } from './lib/hrPermissions'
 import {
   languageInterfaces,
@@ -1832,6 +1837,11 @@ function App() {
     setCandidates((items) => items.map((item) => (item.id === candidateId ? { ...item, ...patch } : item)))
   }
 
+  function addCandidate(candidate: Candidate) {
+    setCandidates((items) => (items.some((item) => item.id === candidate.id) ? items : [candidate, ...items]))
+    setSelectedId(candidate.id)
+  }
+
   function moveCard(draggedId: string, targetId: string) {
     setLayoutProfiles((profiles) => ({
       ...profiles,
@@ -2168,6 +2178,7 @@ function App() {
           {section === 'blueprint' && <FusionBlueprint />}
           {section === 'candidates' && (
             <Candidates
+              addCandidate={addCandidate}
               candidates={candidates}
               selectedId={selectedId}
               setSelectedId={setSelectedId}
@@ -3812,11 +3823,13 @@ function buildAutoDispatchSearchEntries(): GlobalSearchEntry[] {
 }
 
 function Candidates({
+  addCandidate,
   candidates,
   selectedId,
   setSelectedId,
   updateCandidate,
 }: {
+  addCandidate: (candidate: Candidate) => void
   candidates: Candidate[]
   selectedId: number
   setSelectedId: (id: number) => void
@@ -3829,6 +3842,7 @@ function Candidates({
   const [focusTags, setFocusTags] = useState<string[]>(defaultCandidateFocusTags)
   const [customFocusTag, setCustomFocusTag] = useState('')
   const [statusNote, setStatusNote] = useState('')
+  const [resumeImportDraft, setResumeImportDraft] = useState<CandidateResumeImportDraft>(defaultCandidateResumeImportDraft)
   const selectedCandidate = candidates.find((candidate) => candidate.id === selectedId) ?? candidates[0]
   const sortedCandidates = sortCandidates(candidates, sortDirection, focusTags)
   const talentLibraryBoard = buildTalentLibraryBoard(candidates, sampleTalentArchiveContext)
@@ -3887,6 +3901,19 @@ function Candidates({
     { id: 'matchHigh', label: '匹配度最高' },
   ]
   const statusOptions: CandidateStatus[] = ['待初试', '推荐复试', '待作业', '储备', '录用', '淘汰']
+  const sourceOptions: Candidate['source'][] = ['BOSS手动导入', '招聘邮箱', '内推', '文件上传']
+  const postTypeOptions: Array<{ label: string; value: Candidate['postType'] }> = [
+    { label: '业务/销售', value: 'sales' },
+    { label: '运营/内容', value: 'operation' },
+    { label: '职能/行政', value: 'function' },
+    { label: '管理层', value: 'management' },
+    { label: '技术/AI', value: 'tech' },
+    { label: '财务', value: 'finance' },
+    { label: '人力资源', value: 'hr' },
+  ]
+  const availabilityOptions: Candidate['availabilityStatus'][] = ['在职', '离职', '应届', '兼职']
+  const educationOptions: Candidate['educationLevel'][] = ['高中/中专', '大专', '本科', '硕士', '博士']
+  const firstDegreeOptions: Candidate['firstDegreeLevel'][] = ['高中/中专', '大专', '二本', '一本', '硕士', '博士']
   const addCustomFocusTag = () => {
     const nextTag = customFocusTag.trim()
     if (!nextTag || focusTags.includes(nextTag)) return
@@ -3914,6 +3941,22 @@ function Candidates({
     })
     setStatusNote('')
   }
+  const updateResumeImportDraft = <Key extends keyof CandidateResumeImportDraft>(
+    key: Key,
+    value: CandidateResumeImportDraft[Key],
+  ) => {
+    setResumeImportDraft((draft) => ({ ...draft, [key]: value }))
+  }
+  const submitResumeImportDraft = () => {
+    const candidate = createCandidateFromResumeDraft(resumeImportDraft, candidates)
+    addCandidate(candidate)
+    setResumeImportDraft({
+      ...defaultCandidateResumeImportDraft,
+      appliedAt: new Date().toISOString(),
+      postName: resumeImportDraft.postName,
+      postType: resumeImportDraft.postType,
+    })
+  }
 
   return (
     <section>
@@ -3935,6 +3978,231 @@ function Candidates({
           </div>
         }
       />
+      <Card title="简历录入/导入">
+        <div className="resume-import-panel">
+          <div className="resume-import-main">
+            <label>
+              <span>姓名</span>
+              <input
+                onChange={(event) => updateResumeImportDraft('name', event.target.value)}
+                placeholder="候选人姓名"
+                value={resumeImportDraft.name}
+              />
+            </label>
+            <label>
+              <span>手机号</span>
+              <input
+                onChange={(event) => updateResumeImportDraft('phone', event.target.value)}
+                placeholder="手机号"
+                value={resumeImportDraft.phone}
+              />
+            </label>
+            <label>
+              <span>邮箱</span>
+              <input
+                onChange={(event) => updateResumeImportDraft('email', event.target.value)}
+                placeholder="邮箱"
+                value={resumeImportDraft.email}
+              />
+            </label>
+            <label>
+              <span>来源</span>
+              <select
+                onChange={(event) => updateResumeImportDraft('source', event.target.value as Candidate['source'])}
+                value={resumeImportDraft.source}
+              >
+                {sourceOptions.map((source) => (
+                  <option key={source} value={source}>{source}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>岗位</span>
+              <input
+                onChange={(event) => updateResumeImportDraft('postName', event.target.value)}
+                value={resumeImportDraft.postName}
+              />
+            </label>
+            <label>
+              <span>岗位类型</span>
+              <select
+                onChange={(event) => updateResumeImportDraft('postType', event.target.value as Candidate['postType'])}
+                value={resumeImportDraft.postType}
+              >
+                {postTypeOptions.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>投递时间</span>
+              <input
+                onChange={(event) => updateResumeImportDraft('appliedAt', event.target.value)}
+                value={resumeImportDraft.appliedAt}
+              />
+            </label>
+            <label>
+              <span>当前城市</span>
+              <input
+                onChange={(event) => updateResumeImportDraft('currentLocation', event.target.value)}
+                value={resumeImportDraft.currentLocation}
+              />
+            </label>
+            <label>
+              <span>工作城市</span>
+              <input
+                onChange={(event) => updateResumeImportDraft('workCitiesText', event.target.value)}
+                value={resumeImportDraft.workCitiesText}
+              />
+            </label>
+            <label>
+              <span>在离职</span>
+              <select
+                onChange={(event) =>
+                  updateResumeImportDraft('availabilityStatus', event.target.value as Candidate['availabilityStatus'])
+                }
+                value={resumeImportDraft.availabilityStatus}
+              >
+                {availabilityOptions.map((status) => (
+                  <option key={status} value={status}>{status}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>学历</span>
+              <select
+                onChange={(event) =>
+                  updateResumeImportDraft('educationLevel', event.target.value as Candidate['educationLevel'])
+                }
+                value={resumeImportDraft.educationLevel}
+              >
+                {educationOptions.map((level) => (
+                  <option key={level} value={level}>{level}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>第一学历</span>
+              <select
+                onChange={(event) =>
+                  updateResumeImportDraft('firstDegreeLevel', event.target.value as Candidate['firstDegreeLevel'])
+                }
+                value={resumeImportDraft.firstDegreeLevel}
+              >
+                {firstDegreeOptions.map((level) => (
+                  <option key={level} value={level}>{level}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>专业</span>
+              <input
+                onChange={(event) => updateResumeImportDraft('majorName', event.target.value)}
+                value={resumeImportDraft.majorName}
+              />
+            </label>
+            <label>
+              <span>工种</span>
+              <input
+                onChange={(event) => updateResumeImportDraft('workType', event.target.value)}
+                value={resumeImportDraft.workType}
+              />
+            </label>
+            <label>
+              <span>薪酬下限</span>
+              <input
+                min="0"
+                onChange={(event) => updateResumeImportDraft('expectedSalaryMin', Number(event.target.value))}
+                type="number"
+                value={resumeImportDraft.expectedSalaryMin}
+              />
+            </label>
+            <label>
+              <span>薪酬上限</span>
+              <input
+                min="0"
+                onChange={(event) => updateResumeImportDraft('expectedSalaryMax', Number(event.target.value))}
+                type="number"
+                value={resumeImportDraft.expectedSalaryMax}
+              />
+            </label>
+            <label>
+              <span>毕业年份</span>
+              <input
+                min="1980"
+                onChange={(event) => updateResumeImportDraft('graduationYear', Number(event.target.value))}
+                type="number"
+                value={resumeImportDraft.graduationYear}
+              />
+            </label>
+            <label>
+              <span>最近公司</span>
+              <input
+                onChange={(event) => updateResumeImportDraft('lastCompany', event.target.value)}
+                value={resumeImportDraft.lastCompany}
+              />
+            </label>
+            <label>
+              <span>最近岗位</span>
+              <input
+                onChange={(event) => updateResumeImportDraft('lastRole', event.target.value)}
+                value={resumeImportDraft.lastRole}
+              />
+            </label>
+            <label>
+              <span>开始年份</span>
+              <input
+                min="1980"
+                onChange={(event) => updateResumeImportDraft('startYear', Number(event.target.value))}
+                type="number"
+                value={resumeImportDraft.startYear}
+              />
+            </label>
+            <label>
+              <span>结束年份</span>
+              <input
+                min="1980"
+                onChange={(event) => updateResumeImportDraft('endYear', Number(event.target.value))}
+                type="number"
+                value={resumeImportDraft.endYear}
+              />
+            </label>
+            <label>
+              <span>业务初筛分</span>
+              <input
+                max="100"
+                min="0"
+                onChange={(event) => updateResumeImportDraft('businessScore', Number(event.target.value))}
+                type="number"
+                value={resumeImportDraft.businessScore}
+              />
+            </label>
+          </div>
+          <label className="resume-import-tags">
+            <span>技能/关键词</span>
+            <input
+              onChange={(event) => updateResumeImportDraft('skillTagsText', event.target.value)}
+              placeholder="用逗号分隔，例如：Python,AI工具,业绩清晰"
+              value={resumeImportDraft.skillTagsText}
+            />
+          </label>
+          <label className="resume-import-text">
+            <span>简历原文/摘要</span>
+            <textarea
+              onChange={(event) => updateResumeImportDraft('resumeText', event.target.value)}
+              placeholder="粘贴简历摘要、邮箱简历内容或人工整理的关键经历"
+              value={resumeImportDraft.resumeText}
+            />
+          </label>
+          <div className="resume-import-actions">
+            <p>导入后进入候选看板，状态为“待初试”，并写入本机保存和操作记录。</p>
+            <button className="button primary" onClick={submitResumeImportDraft} type="button">
+              <Plus size={15} />
+              导入候选人
+            </button>
+          </div>
+        </div>
+      </Card>
       <Card title="显示字段">
         <div className={`candidate-column-grid density-${displayDensity}`}>
           {(Object.keys(candidatePoolColumnLabels) as CandidatePoolColumn[]).map((column) => (
